@@ -1,0 +1,124 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* City Whispers — cinematic dark design system. All colors HSL. */
+
+@layer base {
+  :root {
+    --background: 230 40% 4%;
+    --foreground: 210 40% 98%;
+
+    --card: 230 35% 7%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 230 40% 6%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 200 95% 60%;
+    --primary-foreground: 230 40% 4%;
+    --primary-glow: 195 100% 65%;
+
+    --secondary: 265 85% 65%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 230 25% 14%;
+    --muted-foreground: 215 20% 70%;
+
+    --accent: 280 90% 70%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 220 30% 18%;
+    --input: 220 30% 14%;
+    --ring: 200 95% 60%;
+
+    --radius: 1rem;
+
+    /* Brand gradients & glows */
+    --gradient-aurora: linear-gradient(135deg, hsl(200 95% 60% / 0.9), hsl(265 85% 65% / 0.85), hsl(280 90% 70% / 0.8));
+    --gradient-panel: linear-gradient(180deg, hsl(230 40% 8% / 0.85), hsl(230 40% 4% / 0.92));
+    --gradient-text: linear-gradient(135deg, hsl(195 100% 75%), hsl(265 90% 75%), hsl(285 95% 78%));
+    --shadow-glow: 0 0 40px hsl(200 95% 60% / 0.35), 0 0 80px hsl(265 85% 65% / 0.25);
+    --shadow-panel: 0 30px 80px -20px hsl(230 80% 2% / 0.8), 0 0 0 1px hsl(220 50% 30% / 0.2);
+    --shadow-marker: 0 0 20px hsl(195 100% 65% / 0.8);
+
+    --transition-cinematic: cubic-bezier(0.16, 1, 0.3, 1);
+
+    --sidebar-background: 230 40% 4%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 200 95% 60%;
+    --sidebar-primary-foreground: 230 40% 4%;
+    --sidebar-accent: 230 25% 14%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 220 30% 18%;
+    --sidebar-ring: 200 95% 60%;
+  }
+
+  .dark {
+    --background: 230 40% 4%;
+    --foreground: 210 40% 98%;
+    --card: 230 35% 7%;
+    --card-foreground: 210 40% 98%;
+    --popover: 230 40% 6%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 200 95% 60%;
+    --primary-foreground: 230 40% 4%;
+    --secondary: 265 85% 65%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 230 25% 14%;
+    --muted-foreground: 215 20% 70%;
+    --accent: 280 90% 70%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 220 30% 18%;
+    --input: 220 30% 14%;
+    --ring: 200 95% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html, body, #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    overflow: hidden;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  .text-aurora {
+    background: var(--gradient-text);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  .panel-glass {
+    background: var(--gradient-panel);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    box-shadow: var(--shadow-panel);
+    border: 1px solid hsl(var(--border) / 0.6);
+  }
+
+  .glow-primary {
+    box-shadow: var(--shadow-glow);
+  }
+}
