@@ -28,7 +28,7 @@
 - Intro clip: *"Welcome to London. You are now witnessing the Great Fire of London."*
 - Voices and SFX interleaved with natural pauses — you feel like you're there
 
-### 🎬 Documentary Mode
+### 🎬 Narration Mode
 - Groq generates a 4-segment narrated documentary about the city and era
 - Choose your narrator: George (warm storyteller), Daniel (formal broadcaster), Brian (resonant), Matilda, Alice, or River
 - Progressive audio loading — first segment plays immediately while others load in the background
