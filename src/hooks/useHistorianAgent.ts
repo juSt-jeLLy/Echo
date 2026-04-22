@@ -1,7 +1,5 @@
 import { useCallback, useRef, useState } from "react";
 
-export const HISTORIAN_AGENT_ID = "agent_2501kpv83qvnfpas77a74tedp0kk";
-
 export interface HistorianAgentState {
   isConversing: boolean;
   startConversation: () => void;

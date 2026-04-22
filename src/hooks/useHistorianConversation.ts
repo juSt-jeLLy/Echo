@@ -3,7 +3,7 @@ import { Conversation } from "@elevenlabs/client";
 import { City } from "@/data/cities";
 import { Era } from "@/data/eras";
 
-export const HISTORIAN_AGENT_ID = "agent_2501kpv83qvnfpas77a74tedp0kk";
+const historianAgentId = import.meta.env.VITE_HISTORIAN_AGENT_ID?.trim();
 
 export type ConversationStatus = "idle" | "connecting" | "connected" | "disconnected";
 export type ConversationMode = "listening" | "speaking";
@@ -46,6 +46,13 @@ export function useHistorianConversation(
   const startConversation = useCallback(async () => {
     if (!city || !era) return;
     if (conversationRef.current || isStartingRef.current) return;
+    if (!historianAgentId) {
+      setError(
+        "Configuration error: VITE_HISTORIAN_AGENT_ID is not set. Please add it to your .env file."
+      );
+      setStatus("idle");
+      return;
+    }
 
     const attemptId = startAttemptRef.current + 1;
     startAttemptRef.current = attemptId;
@@ -63,7 +70,7 @@ export function useHistorianConversation(
       }
 
       const conversation = await Conversation.startSession({
-        agentId: HISTORIAN_AGENT_ID,
+        agentId: historianAgentId,
         dynamicVariables: {
           city: city.name,
           country: city.country,
