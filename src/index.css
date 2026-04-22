@@ -121,4 +121,27 @@
   .glow-primary {
     box-shadow: var(--shadow-glow);
   }
+
+  @keyframes historian-cta-flicker {
+    0%, 100% {
+      opacity: 1;
+      filter: brightness(1);
+    }
+    25% {
+      opacity: 0.9;
+      filter: brightness(1.08);
+    }
+    55% {
+      opacity: 0.82;
+      filter: brightness(1.2);
+    }
+    75% {
+      opacity: 0.95;
+      filter: brightness(1.05);
+    }
+  }
+
+  .historian-cta-flicker {
+    animation: historian-cta-flicker 1.4s ease-in-out infinite;
+  }
 }
