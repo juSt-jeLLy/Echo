@@ -48,6 +48,10 @@ export function useDocumentary(
     if (!city || !era || !voice) {
       audio.pause();
       abortRef.current?.abort();
+      if (waitIntervalRef.current !== null) {
+        clearInterval(waitIntervalRef.current);
+        waitIntervalRef.current = null;
+      }
       setIsLoading(false);
       setIsPlaying(false);
       setError(null);

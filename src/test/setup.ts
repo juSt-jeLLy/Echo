@@ -13,3 +13,7 @@ Object.defineProperty(window, "matchMedia", {
     dispatchEvent: () => {},
   }),
 });
+
+// Mock URL.createObjectURL and URL.revokeObjectURL for jsdom
+global.URL.createObjectURL = () => "mock-object-url";
+global.URL.revokeObjectURL = () => {};

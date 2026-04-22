@@ -75,7 +75,18 @@ export function useAudioPostcard(
 
   // Main generation pipeline
   useEffect(() => {
-    if (!city || !era) return;
+    // Early-return cleanup for mode switch: stop audio when inputs become null
+    if (!city || !era) {
+      sceneAudioRef.current.pause();
+      ambientRef.current.pause();
+      if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current);
+      abortRef.current?.abort();
+      setIsLoading(false);
+      setIsPlaying(false);
+      setError(null);
+      setScene(null);
+      return;
+    }
 
     abortRef.current?.abort();
     const controller = new AbortController();

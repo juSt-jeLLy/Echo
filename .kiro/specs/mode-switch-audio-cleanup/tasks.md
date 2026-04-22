@@ -1,0 +1,99 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Bug Condition** - Mode Switch Audio Overlap
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the bug exists
+  - **Scoped PBT Approach**: Scope the property to concrete failing cases: mode switches while audio is playing
+  - Test that when switching from "Wander the City" to "Documentary" mode, the wander audio (sceneAudioRef and ambientRef) stops immediately
+  - Test that when switching from "Documentary" to "Wander the City" mode, the documentary audio (audioRef) stops immediately
+  - Test that rapid mode switching (Wander → Documentary → Wander) stops all previous audio streams
+  - Test that mode switching during loading aborts and prevents audio from starting
+  - Run test on UNFIXED code
+  - **EXPECTED OUTCOME**: Test FAILS (this is correct - it proves the bug exists)
+  - Document counterexamples found (e.g., "audio continues playing after mode switch", "multiple audio streams play simultaneously")
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 1.1, 1.2, 1.3, 1.4_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Non-Mode-Switch Audio Behavior
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for non-mode-switch scenarios:
+    - Normal playback in wander mode (scene audio + ambient with 400ms gaps)
+    - Normal playback in documentary mode (4 segments with progressive loading)
+    - Pause/resume via toggle button
+    - Playlist completion in wander mode
+    - Documentary completion (all 4 segments)
+    - Error handling and retry functionality
+  - Write property-based tests capturing observed behavior patterns:
+    - For all wander playback without mode switch, scene audio and ambient play correctly with proper sequencing
+    - For all documentary playback without mode switch, segments play progressively with prefetching
+    - For all pause/resume actions within a mode, audio pauses and resumes without stopping or resetting
+    - For all playlist completions, playback stops and state resets correctly
+    - For all error scenarios, retry regenerates and plays audio correctly
+  - Property-based testing generates many test cases for stronger guarantees
+  - Run tests on UNFIXED code
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+
+- [x] 3. Fix for mode switch audio cleanup
+
+  - [x] 3.1 Add early-return null check to useAudioPostcard hook
+    - In `src/hooks/useAudioPostcard.ts`, at the beginning of the main useEffect (after the existing cleanup on unmount)
+    - Add check: if `!city || !era`, then perform cleanup and return early
+    - Pause both audio refs: `sceneAudioRef.current.pause()` and `ambientRef.current.pause()`
+    - Clear pending timer: `if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current)`
+    - Abort in-flight requests: `abortRef.current?.abort()`
+    - Reset state: `setIsLoading(false)`, `setIsPlaying(false)`, `setError(null)`, `setScene(null)`
+    - Return early to prevent further execution
+    - _Bug_Condition: isBugCondition(input) where input.previousMode = "wander" AND input.newMode = "documentary" AND audioIsCurrentlyPlaying("wander") AND hookReceivesNullInputs("wander")_
+    - _Expected_Behavior: When useAudioPostcard receives null inputs, all audio (sceneAudioRef, ambientRef) SHALL pause immediately and state SHALL reset_
+    - _Preservation: Normal wander playback, pause/resume, completion, and cleanup behaviors from Preservation Requirements_
+    - _Requirements: 1.1, 1.3, 2.1, 2.3, 3.1, 3.3, 3.5, 3.7_
+
+  - [x] 3.2 Add early-return null check to useDocumentary hook
+    - In `src/hooks/useDocumentary.ts`, at the beginning of the main useEffect
+    - Add check: if `!city || !era || !voice`, then perform cleanup and return early
+    - Pause audio ref: `audio.pause()` (where audio = audioRef.current)
+    - Abort in-flight requests: `abortRef.current?.abort()`
+    - Clear pending interval: `if (waitIntervalRef.current !== null) { clearInterval(waitIntervalRef.current); waitIntervalRef.current = null; }`
+    - Reset state: `setIsLoading(false)`, `setIsPlaying(false)`, `setError(null)`, `setSegments(null)`
+    - Return early to prevent further execution
+    - _Bug_Condition: isBugCondition(input) where input.previousMode = "documentary" AND input.newMode = "wander" AND audioIsCurrentlyPlaying("documentary") AND hookReceivesNullInputs("documentary")_
+    - _Expected_Behavior: When useDocumentary receives null inputs, audio (audioRef) SHALL pause immediately and state SHALL reset_
+    - _Preservation: Normal documentary playback, pause/resume, completion, and cleanup behaviors from Preservation Requirements_
+    - _Requirements: 1.2, 1.4, 2.2, 2.4, 3.2, 3.3, 3.6, 3.7_
+
+  - [x] 3.3 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Mode Switch Audio Cleanup
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior
+    - When this test passes, it confirms the expected behavior is satisfied
+    - Run bug condition exploration test from step 1
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - Verify that mode switching from wander to documentary stops wander audio
+    - Verify that mode switching from documentary to wander stops documentary audio
+    - Verify that rapid mode switching stops all previous audio
+    - Verify that mode switching during loading aborts and prevents audio
+    - _Requirements: 2.1, 2.2, 2.3, 2.4_
+
+  - [x] 3.4 Verify preservation tests still pass
+    - **Property 2: Preservation** - Non-Mode-Switch Audio Behavior
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Confirm all tests still pass after fix:
+      - Normal wander playback with scene audio + ambient sequencing
+      - Normal documentary playback with progressive loading
+      - Pause/resume functionality within a mode
+      - Playlist completion behavior
+      - Documentary completion behavior
+      - Error handling and retry functionality
+      - Cleanup on unmount and new generation
+    - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5, 3.6, 3.7_
+
+- [x] 4. Checkpoint - Ensure all tests pass
+  - Ensure all tests pass, ask the user if questions arise.
