@@ -3,8 +3,9 @@ import { City } from "@/data/cities";
 import { Era } from "@/data/eras";
 
 export interface SceneLine {
-  voiceName: string;
-  voiceId: string;
+  type: "voice" | "sfx";
+  voiceName?: string;
+  voiceId?: string;
   line: string;
 }
 
@@ -86,7 +87,7 @@ Return JSON with exactly these 3 fields:
       { signal }
     ),
 
-    // Call 2: Plain text VOICE lines — no json_object to avoid escaping failures
+    // Call 2: Plain text interleaved VOICE and SFX lines — no json_object to avoid escaping failures
     client.chat.completions.create(
       {
         model: "llama-3.1-8b-instant",
@@ -95,30 +96,36 @@ Return JSON with exactly these 3 fields:
           {
             role: "system",
             content:
-              "You are an immersive sound designer writing multi-voice scene lines. Output plain text only, no JSON, no markdown.",
+              "You are an immersive sound designer writing interleaved voice and sound effect lines. Output plain text only, no JSON, no markdown.",
           },
           {
             role: "user",
-            content: `Write 15-18 voice lines for a scene in ${city.name}, ${city.country} around ${era.year} during a real historical event.
+            content: `Write an interleaved sequence of voice lines and sound effect cues for a scene in ${city.name}, ${city.country} around ${era.year} during a real historical event.
 
-Each line must be in this EXACT format (one per line):
-VOICE:VoiceName|the spoken line
+Format — alternate VOICE and SFX lines, starting with VOICE:
+VOICE:VoiceName|spoken line (what the character shouts/says, 5-20 words, in local language)
+SFX:sound effect description (15-25 words, specific to the event, cinematic sound design brief)
 
 Rules:
-- Each line is ONE shout, call, reaction, or short exchange (5-20 words)
-- Use local language of ${city.country} for most lines — phonetic shouts
-- Choose voice names ONLY from: Charlie, Laura, Brian, Jessica, Will, Roger, Liam, Sarah
-- Match voice to character: Brian=officer/authority, Charlie/Liam=young rebel/soldier, Laura/Jessica/Sarah=women in crowd, Will/Roger=merchant/bystander
-- NO narration, NO descriptions — only what the character SHOUTS or SAYS
-- Output ONLY the VOICE: lines, nothing else, no blank lines
+- 8-10 VOICE lines, 7-9 SFX lines, strictly alternating starting with VOICE
+- VOICE lines MUST reference the specific historical event happening (fire, battle, flood, rebellion, etc.)
+- SFX descriptions must be specific to the event (NOT generic crowd noise)
+- Use local language of ${city.country} for voice lines
+- Voice names ONLY from: Charlie, Laura, Brian, Jessica, Will, Roger, Liam, Sarah
+- Brian=officer/authority, Charlie/Liam=young rebel/soldier, Laura/Jessica/Sarah=women, Will/Roger=merchant/bystander
+- Output ONLY the VOICE: and SFX: lines, nothing else
 
-Example:
-VOICE:Brian|Move along! Clear the streets immediately!
-VOICE:Charlie|Viva la Republica! Viva Mexico libre!
-VOICE:Laura|Soldados vienen! Corre! Corre ahora!
-VOICE:Jessica|Ayuda! Por favor ayuda a mis hijos!
-VOICE:Will|El pueblo unido jamas sera vencido!
-VOICE:Roger|Cierra la tienda! Cierra todo ahora!`,
+Example for Great Fire of London 1666:
+VOICE:Charlie|Fire! The bakery on Pudding Lane is ablaze! Run!
+SFX:roaring fire consuming wooden buildings, crackling beams collapsing, 1666 London street
+VOICE:Laura|My children are inside! Someone help me please!
+SFX:crowd screaming and stampeding on cobblestone, church bell ringing alarm
+VOICE:Brian|Form a bucket chain! Get water from the Thames now!
+SFX:water splashing, buckets clanging, desperate shouting, fire roaring louder
+VOICE:Roger|Save the goods! Get them out before the fire spreads!
+SFX:wooden cart wheels on cobblestone rushing away, horse neighing in panic
+VOICE:Jessica|The whole street is burning! God save us all!
+SFX:massive fire explosion, building facade collapsing, crowd wailing`,
           },
         ],
       },
@@ -145,16 +152,19 @@ VOICE:Roger|Cierra la tienda! Cierra todo ahora!`,
     );
   }
 
-  // Get plain text VOICE lines from Call 2 — parse into SceneLine[]
+  // Get plain text VOICE/SFX lines from Call 2 — parse into SceneLine[]
   const sceneLines: SceneLine[] = (scriptResult.choices[0]?.message?.content ?? "")
     .split("\n")
-    .filter(l => l.startsWith("VOICE:"))
+    .filter(l => l.startsWith("VOICE:") || l.startsWith("SFX:"))
     .map(l => {
+      if (l.startsWith("SFX:")) {
+        return { type: "sfx" as const, line: l.replace("SFX:", "").trim() };
+      }
       const [meta, ...rest] = l.replace("VOICE:", "").split("|");
       const voiceName = meta.trim();
       const line = rest.join("|").trim();
       const voiceId = VOICE_ID_MAP[voiceName] ?? VOICE_ID_MAP.Charlie;
-      return { voiceName, voiceId, line };
+      return { type: "voice" as const, voiceName, voiceId, line };
     })
     .filter(l => l.line.length > 0);
 

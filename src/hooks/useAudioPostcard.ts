@@ -5,6 +5,7 @@ import { generateScene, SceneResult } from "@/services/groqService";
 import {
   generateAmbientSoundscape,
   synthesiseSceneLines,
+  synthesiseIntro,
 } from "@/services/elevenLabsService";
 
 export interface AudioPostcardState {
@@ -20,16 +21,45 @@ export function useAudioPostcard(
   city: City | null,
   era: Era | null
 ): AudioPostcardState {
-  // Two audio layers: TTS scene audio (voices) + SFX ambient (environment)
   const sceneAudioRef = useRef<HTMLAudioElement>(new Audio());
   const ambientRef = useRef<HTMLAudioElement>(new Audio());
   const abortRef = useRef<AbortController | null>(null);
+  const playlistRef = useRef<string[]>([]);
+  const playlistIndexRef = useRef(0);
+  const playlistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [scene, setScene] = useState<SceneResult | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+
+  // Advance to the next segment in the playlist with a 400ms gap
+  const playNext = useCallback(() => {
+    const idx = playlistIndexRef.current;
+    const playlist = playlistRef.current;
+
+    if (idx >= playlist.length) {
+      ambientRef.current.pause();
+      ambientRef.current.currentTime = 0;
+      sceneAudioRef.current.currentTime = 0;
+      playlistIndexRef.current = 0;
+      setIsPlaying(false);
+      return;
+    }
+
+    sceneAudioRef.current.src = playlist[idx];
+    playlistIndexRef.current = idx + 1;
+
+    playlistTimerRef.current = setTimeout(() => {
+      sceneAudioRef.current.play().catch(() => {});
+    }, 400);
+  }, []);
+
+  // Wire up onended once
+  useEffect(() => {
+    sceneAudioRef.current.onended = playNext;
+  }, [playNext]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -38,6 +68,7 @@ export function useAudioPostcard(
     return () => {
       sceneAudio.pause();
       ambient.pause();
+      if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current);
       abortRef.current?.abort();
     };
   }, []);
@@ -46,7 +77,6 @@ export function useAudioPostcard(
   useEffect(() => {
     if (!city || !era) return;
 
-    // Cancel any in-flight request
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -58,19 +88,17 @@ export function useAudioPostcard(
     setScene(null);
     sceneAudioRef.current.pause();
     ambientRef.current.pause();
+    if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current);
 
     const run = async () => {
       try {
-        // Step 1: Ask Groq for the historical event, soundscape prompt, and scene audio script
         const sceneResult = await generateScene(city, era, signal);
-
         if (signal.aborted) return;
 
-        // Show the scene info immediately while audio loads
         setScene(sceneResult);
 
-        // Step 2: Generate both audio layers in parallel
-        const [sceneAudioUrl, ambientUrl] = await Promise.all([
+        const [introUrl, sceneUrls, ambientUrl] = await Promise.all([
+          synthesiseIntro(city, sceneResult.eventName, sceneResult.atmosphere, signal),
           synthesiseSceneLines(sceneResult.sceneLines, signal),
           generateAmbientSoundscape(sceneResult.soundscapePrompt, signal),
         ]);
@@ -78,22 +106,22 @@ export function useAudioPostcard(
         if (signal.aborted) return;
 
         if (!ambientUrl) {
-          throw new Error(
-            "Could not generate the soundscape for this scene. Please retry."
-          );
+          throw new Error("Could not generate the soundscape for this scene. Please retry.");
         }
 
-        // Step 3: Wire up ambient — looped at low volume underneath scene audio,
-        // or played once (no loop) when there is no scene audio.
+        // Store playlist with intro prepended
+        playlistRef.current = [introUrl, ...sceneUrls].filter((u): u is string => u !== null);
+        playlistIndexRef.current = 0;
+
+        // Wire up ambient
         ambientRef.current.src = ambientUrl;
         ambientRef.current.volume = 0.3;
 
-        if (sceneAudioUrl) {
-          // Scene audio exists: ambient loops for the duration of TTS playback.
+        const playlist = playlistRef.current;
+        if (playlist.length > 0) {
           ambientRef.current.loop = true;
           ambientRef.current.onended = null;
         } else {
-          // No scene audio: ambient plays once then stops.
           ambientRef.current.loop = false;
           ambientRef.current.onended = () => {
             ambientRef.current.currentTime = 0;
@@ -101,36 +129,20 @@ export function useAudioPostcard(
           };
         }
 
-        // Step 4: Wire up scene audio (TTS) — plays once at full volume
-        if (sceneAudioUrl) {
-          sceneAudioRef.current.src = sceneAudioUrl;
-          sceneAudioRef.current.volume = 1.0;
-          sceneAudioRef.current.loop = false;
-
-          // When scene audio ends, pause ambient and reset playback state
-          sceneAudioRef.current.onended = () => {
-            ambientRef.current.pause();
-            ambientRef.current.currentTime = 0;
-            sceneAudioRef.current.currentTime = 0;
-            setIsPlaying(false);
-          };
-        }
-
         setIsLoading(false);
 
-        // Step 5: Autoplay both layers simultaneously
+        // Start playback
         const playPromises: Promise<void>[] = [ambientRef.current.play()];
-        if (sceneAudioUrl) {
+        if (playlist.length > 0) {
+          sceneAudioRef.current.src = playlist[0];
+          playlistIndexRef.current = 1;
           playPromises.push(sceneAudioRef.current.play());
         }
         await Promise.all(playPromises);
         setIsPlaying(true);
       } catch (err) {
-        if (err instanceof DOMException && err.name === "AbortError") {
-          return; // silently ignore — new pipeline starting
-        }
-        const message =
-          err instanceof Error ? err.message : "An unknown error occurred.";
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        const message = err instanceof Error ? err.message : "An unknown error occurred.";
         setError(message);
         setIsLoading(false);
       }
@@ -141,32 +153,23 @@ export function useAudioPostcard(
 
   const toggle = useCallback(() => {
     if (isPlaying) {
+      if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current);
       sceneAudioRef.current.pause();
       ambientRef.current.pause();
       setIsPlaying(false);
     } else {
-      const playPromises: Promise<void>[] = [];
-      // Only resume scene audio if it hasn't finished yet
-      if (
-        sceneAudioRef.current.src &&
-        !sceneAudioRef.current.ended &&
-        sceneAudioRef.current.currentTime > 0
+      ambientRef.current.play().catch(() => {});
+      if (sceneAudioRef.current.src && !sceneAudioRef.current.ended) {
+        sceneAudioRef.current.play().catch(() => {});
+      } else if (
+        playlistRef.current.length > 0 &&
+        playlistIndexRef.current < playlistRef.current.length
       ) {
-        playPromises.push(
-          sceneAudioRef.current.play().catch((err) => {
-            console.warn("[useAudioPostcard] Scene audio play failed:", err);
-          })
-        );
+        playNext();
       }
-      playPromises.push(
-        ambientRef.current.play().catch((err) => {
-          console.warn("[useAudioPostcard] Ambient play failed:", err);
-        })
-      );
-      Promise.all(playPromises);
       setIsPlaying(true);
     }
-  }, [isPlaying]);
+  }, [isPlaying, playNext]);
 
   const retry = useCallback(() => {
     setRetryCount((c) => c + 1);
