@@ -52,6 +52,41 @@ async function retryWithBackoff<T>(
 // ── Script Generation ─────────────────────────────────────────
 
 /**
+ * Strips common segment label prefixes from the start of a segment string.
+ * Handles bold headings (**World Context**), numbered prefixes (1., Segment 1:), etc.
+ */
+function stripSegmentLabel(segment: string): string {
+  return segment
+    .replace(/^\s*\*\*[^*]+\*\*\s*\n?/, '')   // bold heading on its own line
+    .replace(/^\s*(?:Segment\s+)?\d+[.:]\s*/i, '') // "1." or "Segment 1:"
+    .trim();
+}
+
+/**
+ * Parses raw LLM content into segments using a multi-strategy cascade.
+ * Tries four splitting strategies in priority order; throws only if all fail.
+ */
+function parseSegments(content: string): string[] {
+  const strategies = [
+    () => content.split(/\s*---+\s*/),           // Strategy 1: --- (primary)
+    () => content.split(/\n{3,}/),               // Strategy 2: triple newlines
+    () => content.split(/\n(?=\s*(?:\d+\.|Segment\s+\d+\s*:))/i), // Strategy 3: numbered headings
+    () => content.split(/\n(?=\s*\*\*[^*]+\*\*)/), // Strategy 4: bold markdown
+  ];
+
+  for (const strategy of strategies) {
+    const segments = strategy()
+      .map(s => stripSegmentLabel(s).trim())
+      .filter(s => s.length > 0);
+    if (segments.length >= 2) {
+      return segments.slice(0, 4);
+    }
+  }
+
+  throw new Error("Documentary script generation returned fewer than 2 segments. Please retry.");
+}
+
+/**
  * Calls Groq to generate a 4-segment documentary script about the given city and era.
  * Returns an array of exactly 4 non-empty segment strings.
  */
@@ -74,7 +109,7 @@ export async function generateDocumentaryScript(
             {
               role: "system",
               content:
-                "You are a documentary narrator. Write in a clear, engaging documentary style. Output only the 4 segments separated by '---', nothing else.",
+                "You are a documentary narrator. Write in a clear, engaging documentary style. You MUST separate the 4 segments using only '---' on its own line. Do not use numbered headings, bold labels, or any other separator. Output only the 4 segments separated by '---', nothing else.",
             },
             {
               role: "user",
@@ -84,7 +119,8 @@ Return exactly 4 segments as plain text separated by "---":
 - Segment 2: The city — what life was like in ${city.name} specifically
 - Segment 3: Key events or developments in ${city.name} or ${city.country} around this time
 - Segment 4: Daily life, culture, and the sounds of ${city.name} in this era
-Each segment must be 80-90 words, written in documentary narration style. Do not include segment labels or headings.`,
+Each segment must be 80-90 words, written in documentary narration style. Do not include segment labels or headings.
+IMPORTANT: Separate each segment with '---' on its own line. Do not add any labels, headings, or numbering. Use ONLY '---' as the separator.`,
             },
           ],
         },
@@ -99,17 +135,7 @@ Each segment must be 80-90 words, written in documentary narration style. Do not
     throw new Error("Documentary script generation returned an empty response.");
   }
 
-  const segments = content
-    .split(/\s*---\s*/)
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
-    .slice(0, 4);
-
-  if (segments.length < 2) {
-    throw new Error(
-      "Documentary script generation returned fewer than 2 segments. Please retry."
-    );
-  }
+  const segments = parseSegments(content);
 
   // Pad to 4 if Groq returned fewer (shouldn't happen, but defensive)
   while (segments.length < 4) {
