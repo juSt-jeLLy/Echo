@@ -53,12 +53,12 @@ export function CityPanel({ city, era, mode, voice, onBack, onClose }: Props) {
     <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center px-4 py-8">
       <div
         key={city.id + "-" + era.id + "-" + activeMode}
-        className="pointer-events-auto w-full max-w-3xl panel-glass rounded-3xl px-8 sm:px-10 py-8 animate-rise"
+        className="pointer-events-auto w-full max-w-4xl panel-glass rounded-3xl px-8 sm:px-10 py-8 animate-rise"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-primary/80 mb-2">
+            <div className="flex items-center gap-2 text-sm uppercase tracking-[0.22em] text-primary/80 mb-2">
               <span className="relative flex h-2 w-2">
                 <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-70" />
                 <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
@@ -124,12 +124,12 @@ export function CityPanel({ city, era, mode, voice, onBack, onClose }: Props) {
           {!active.isLoading && activeMode === "wander" && wanderState.scene && (
             <div className="animate-fade-in">
               <div className="flex items-center gap-1.5 mb-2">
-                <Radio size={11} className="text-primary/70 shrink-0" />
-                <span className="text-sm font-semibold uppercase tracking-[0.18em] text-primary/70">
+                <Radio size={14} className="text-primary/70 shrink-0" />
+                <span className="text-xl font-bold uppercase tracking-[0.18em] text-primary/70">
                   {wanderState.scene.eventName}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground font-display leading-snug">
+              <p className="text-base text-muted-foreground font-display leading-snug">
                 {wanderState.scene.atmosphere}
               </p>
             </div>

@@ -38,7 +38,7 @@ export function EraCard({ city, onSelectEra, onClose }: Props) {
     <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center px-4 py-8">
       <div
         key={city.id + "-era"}
-        className="pointer-events-auto w-full max-w-3xl panel-glass rounded-3xl px-8 sm:px-10 py-8 animate-rise"
+        className="pointer-events-auto w-full max-w-4xl panel-glass rounded-3xl px-8 sm:px-10 py-8 animate-rise"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
@@ -70,17 +70,17 @@ export function EraCard({ city, onSelectEra, onClose }: Props) {
               key={era.id}
               onClick={() => onSelectEra(era)}
               style={{ animationDelay: `${i * 40}ms` }}
-              className="group relative text-left rounded-2xl border border-border/60 bg-card/40 hover:bg-card/70 hover:border-primary/50 p-3.5 transition-all hover:-translate-y-0.5 animate-fade-in overflow-hidden"
+              className="group relative text-left rounded-2xl border border-border/60 bg-card/40 hover:bg-card/70 hover:border-primary/50 p-5 transition-all hover:-translate-y-0.5 animate-fade-in overflow-hidden"
             >
               <div
                 className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ background: "var(--gradient-aurora)", mixBlendMode: "overlay" }}
               />
               <div className="relative">
-                <div className="font-display text-xl font-semibold tracking-tight">
+                <div className="font-display text-3xl font-semibold tracking-tight">
                   {era.label}
                 </div>
-                <div className="text-[11px] text-muted-foreground mt-0.5 leading-snug line-clamp-2">
+                <div className="text-sm text-muted-foreground mt-1 leading-snug line-clamp-2">
                   {era.tagline}
                 </div>
               </div>

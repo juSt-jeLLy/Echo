@@ -69,7 +69,7 @@ export async function generateDocumentaryScript(
       groq.chat.completions.create(
         {
           model: "llama-3.1-8b-instant",
-          max_tokens: 1200,
+          max_tokens: 800,
           messages: [
             {
               role: "system",
@@ -84,7 +84,7 @@ Return exactly 4 segments as plain text separated by "---":
 - Segment 2: The city — what life was like in ${city.name} specifically
 - Segment 3: Key events or developments in ${city.name} or ${city.country} around this time
 - Segment 4: Daily life, culture, and the sounds of ${city.name} in this era
-Each segment must be 100-180 words, written in documentary narration style. Do not include segment labels or headings.`,
+Each segment must be 80-90 words, written in documentary narration style. Do not include segment labels or headings.`,
             },
           ],
         },
@@ -122,8 +122,51 @@ Each segment must be 100-180 words, written in documentary narration style. Do n
 // ── Audio Synthesis ───────────────────────────────────────────
 
 /**
+ * Synthesises a single documentary segment via ElevenLabs TTS.
+ * Returns an object URL pointing to the audio blob.
+ * Throws AbortError immediately if signal is already aborted.
+ * Retries up to 3 times on 429 rate-limit errors with exponential backoff.
+ */
+export async function synthesiseSegment(
+  segment: string,
+  voiceId: string,
+  signal?: AbortSignal
+): Promise<string> {
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+
+  const response = await retryWithBackoff(
+    () =>
+      client.textToSpeech.convert(voiceId, {
+        text: segment,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.65,
+          similarity_boost: 0.8,
+          style: 0.1,
+          use_speaker_boost: true,
+        },
+        output_format: "mp3_44100_128",
+      }),
+    3,
+    signal
+  );
+
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of response) {
+    if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+    chunks.push(chunk);
+  }
+
+  const blob = new Blob(chunks, { type: "audio/mpeg" });
+  return URL.createObjectURL(blob);
+}
+
+/**
  * Synthesises each documentary segment as a separate TTS call in parallel.
  * Returns an ordered array of object URLs — one per segment.
+ * Delegates to synthesiseSegment() for each segment.
  */
 export async function synthesiseDocumentaryAudio(
   segments: string[],
@@ -135,35 +178,7 @@ export async function synthesiseDocumentaryAudio(
   const results = await Promise.all(
     segments.map(async (segment, i) => {
       try {
-        if (signal?.aborted) return null;
-
-        const response = await retryWithBackoff(
-          () =>
-            client.textToSpeech.convert(voiceId, {
-              text: segment,
-              model_id: "eleven_multilingual_v2",
-              voice_settings: {
-                stability: 0.65,
-                similarity_boost: 0.8,
-                style: 0.1,
-                use_speaker_boost: true,
-              },
-              output_format: "mp3_44100_128",
-            }),
-          3,
-          signal
-        );
-
-        if (signal?.aborted) return null;
-
-        const chunks: Uint8Array[] = [];
-        for await (const chunk of response) {
-          if (signal?.aborted) return null;
-          chunks.push(chunk);
-        }
-
-        const blob = new Blob(chunks, { type: "audio/mpeg" });
-        return URL.createObjectURL(blob);
+        return await synthesiseSegment(segment, voiceId, signal);
       } catch (err: unknown) {
         if (err instanceof DOMException && err.name === "AbortError") return null;
         const status =

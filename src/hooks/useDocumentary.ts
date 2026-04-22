@@ -4,7 +4,7 @@ import { Era } from "@/data/eras";
 import { NarratorVoice } from "@/data/voices";
 import {
   generateDocumentaryScript,
-  synthesiseDocumentaryAudio,
+  synthesiseSegment,
 } from "@/services/documentaryService";
 
 export interface DocumentaryState {
@@ -22,66 +22,36 @@ export function useDocumentary(
   era: Era | null,
   voice: NarratorVoice | null
 ): DocumentaryState {
+  // ── Persistent refs ──────────────────────────────────────────
   const audioRef = useRef<HTMLAudioElement>(new Audio());
   const abortRef = useRef<AbortController | null>(null);
-  const playlistRef = useRef<string[]>([]);
-  const playlistIndexRef = useRef(0);
-  const playlistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Progressive loading refs
+  const segmentCacheRef = useRef<Map<number, string>>(new Map());
+  const prefetchedRef = useRef<Set<number>>(new Set());
+  const currentSegmentIndexRef = useRef<number>(0);
+  const textSegmentsRef = useRef<string[] | null>(null);
+  const waitIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // ── State ────────────────────────────────────────────────────
   const [isLoading, setIsLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [segments, setSegments] = useState<string[] | null>(null);
   const [retryCount, setRetryCount] = useState(0);
 
-  // Advance to the next segment in the playlist
-  const playNext = useCallback(() => {
-    const idx = playlistIndexRef.current;
-    const playlist = playlistRef.current;
-
-    if (idx >= playlist.length) {
-      audioRef.current.currentTime = 0;
-      playlistIndexRef.current = 0;
-      setIsPlaying(false);
-      return;
-    }
-
-    audioRef.current.src = playlist[idx];
-    playlistIndexRef.current = idx + 1;
-
-    playlistTimerRef.current = setTimeout(() => {
-      audioRef.current.play().catch(() => {});
-    }, 300);
-  }, []);
-
-  // Wire up onended once
-  useEffect(() => {
-    audioRef.current.onended = playNext;
-  }, [playNext]);
-
-  // Cleanup on unmount
+  // ── Main generation pipeline ─────────────────────────────────
   useEffect(() => {
     const audio = audioRef.current;
-    return () => {
-      audio.pause();
-      if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current);
-      abortRef.current?.abort();
-    };
-  }, []);
 
-  // Main generation pipeline
-  useEffect(() => {
-    // If any required input is missing, do nothing (allows conditional disabling)
+    // If any required input is missing, stop and reset
     if (!city || !era || !voice) {
-      // Stop any in-progress audio when disabled
-      audioRef.current.pause();
+      audio.pause();
       abortRef.current?.abort();
       setIsLoading(false);
       setIsPlaying(false);
       setError(null);
       setSegments(null);
-      playlistRef.current = [];
-      playlistIndexRef.current = 0;
       return;
     }
 
@@ -94,38 +64,130 @@ export function useDocumentary(
     setError(null);
     setIsPlaying(false);
     setSegments(null);
-    audioRef.current.pause();
-    if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current);
+    audio.pause();
 
-    const run = async () => {
-      try {
-        // Step 1: Generate documentary script
-        const scriptSegments = await generateDocumentaryScript(city, era, signal);
-        if (signal.aborted) return;
+    // ── onTimeUpdate: prefetch next segment at 30-second mark ──
+    const onTimeUpdate = () => {
+      const idx = currentSegmentIndexRef.current;
+      const nextIdx = idx + 1;
 
-        setSegments(scriptSegments);
+      // Guards
+      if (nextIdx > 3) return;
+      if (prefetchedRef.current.has(nextIdx)) return;
+      if (audio.currentTime < 30) return;
 
-        // Step 2: Synthesise all segments in parallel
-        const audioUrls = await synthesiseDocumentaryAudio(
-          scriptSegments,
-          voice.id,
-          signal
-        );
-        if (signal.aborted) return;
+      // Mark immediately for idempotence
+      prefetchedRef.current.add(nextIdx);
 
-        // Build playlist
-        playlistRef.current = audioUrls;
-        playlistIndexRef.current = 0;
+      const textSegments = textSegmentsRef.current;
+      if (!textSegments) return;
 
-        setIsLoading(false);
+      synthesiseSegment(textSegments[nextIdx], voice.id, signal)
+        .then((url) => {
+          segmentCacheRef.current.set(nextIdx, url);
+        })
+        .catch(() => {
+          // Errors handled in onended / waitForSegment
+        });
+    };
 
-        // Start playback
-        if (audioUrls.length > 0) {
-          audioRef.current.src = audioUrls[0];
-          playlistIndexRef.current = 1;
-          await audioRef.current.play();
+    // ── waitForSegment: poll cache until URL is available ──────
+    const waitForSegment = (idx: number) => {
+      if (waitIntervalRef.current !== null) {
+        clearInterval(waitIntervalRef.current);
+      }
+
+      const intervalId = setInterval(() => {
+        if (signal.aborted) {
+          clearInterval(intervalId);
+          waitIntervalRef.current = null;
+          return;
+        }
+
+        const url = segmentCacheRef.current.get(idx);
+        if (url) {
+          clearInterval(intervalId);
+          waitIntervalRef.current = null;
+          currentSegmentIndexRef.current = idx;
+          audio.src = url;
+          audio.play().catch(() => {});
+          setIsLoading(false);
           setIsPlaying(true);
         }
+      }, 100);
+
+      waitIntervalRef.current = intervalId;
+    };
+
+    // ── onended: advance to next segment ──────────────────────
+    const onEnded = () => {
+      const nextIdx = currentSegmentIndexRef.current + 1;
+
+      if (nextIdx > 3) {
+        setIsPlaying(false);
+        setIsLoading(false);
+        return;
+      }
+
+      const url = segmentCacheRef.current.get(nextIdx);
+      if (url) {
+        currentSegmentIndexRef.current = nextIdx;
+        audio.src = url;
+        audio.play().catch(() => {});
+      } else {
+        // Cache miss — wait for prefetch to complete
+        setIsLoading(true);
+        waitForSegment(nextIdx);
+      }
+    };
+
+    audio.onended = onEnded;
+
+    // ── cleanup: abort, revoke URLs, reset all refs ────────────
+    const cleanup = () => {
+      abortRef.current?.abort();
+      audio.pause();
+      audio.removeEventListener("timeupdate", onTimeUpdate);
+      audio.onended = null;
+
+      if (waitIntervalRef.current !== null) {
+        clearInterval(waitIntervalRef.current);
+        waitIntervalRef.current = null;
+      }
+
+      segmentCacheRef.current.forEach((url) => URL.revokeObjectURL(url));
+      segmentCacheRef.current.clear();
+      prefetchedRef.current.clear();
+      currentSegmentIndexRef.current = 0;
+      textSegmentsRef.current = null;
+    };
+
+    // ── run: generate script + synthesise segment 0 ───────────
+    const run = async () => {
+      try {
+        // Step 1: Generate all 4 text segments upfront (cheap Groq call)
+        const textSegments = await generateDocumentaryScript(city, era, signal);
+        if (signal.aborted) return;
+
+        textSegmentsRef.current = textSegments;
+        setSegments(textSegments);
+
+        // Step 2: Synthesise only segment 0 before playback
+        const url0 = await synthesiseSegment(textSegments[0], voice.id, signal);
+        if (signal.aborted) return;
+
+        segmentCacheRef.current.set(0, url0);
+
+        // Step 3: Start playback
+        audio.src = url0;
+        await audio.play();
+        if (signal.aborted) return;
+
+        setIsLoading(false);
+        setIsPlaying(true);
+
+        // Step 4: Attach timeupdate listener for background prefetch
+        audio.addEventListener("timeupdate", onTimeUpdate);
       } catch (err) {
         if (err instanceof DOMException && err.name === "AbortError") return;
         const message =
@@ -136,26 +198,23 @@ export function useDocumentary(
     };
 
     run();
+
+    return cleanup;
   }, [city, era, voice, retryCount]);
 
+  // ── toggle ───────────────────────────────────────────────────
   const toggle = useCallback(() => {
+    const audio = audioRef.current;
     if (isPlaying) {
-      if (playlistTimerRef.current) clearTimeout(playlistTimerRef.current);
-      audioRef.current.pause();
+      audio.pause();
       setIsPlaying(false);
     } else {
-      if (audioRef.current.src && !audioRef.current.ended) {
-        audioRef.current.play().catch(() => {});
-      } else if (
-        playlistRef.current.length > 0 &&
-        playlistIndexRef.current < playlistRef.current.length
-      ) {
-        playNext();
-      }
+      audio.play().catch(() => {});
       setIsPlaying(true);
     }
-  }, [isPlaying, playNext]);
+  }, [isPlaying]);
 
+  // ── retry ────────────────────────────────────────────────────
   const retry = useCallback(() => {
     setRetryCount((c) => c + 1);
   }, []);
