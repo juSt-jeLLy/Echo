@@ -6,7 +6,7 @@
         "elevenlabs-mcp"
       ],
       "env": {
-        "ELEVENLABS_API_KEY": "sk_a347b27de53e03dcb1bb1bf985f3695a4e5d5e9521ac05b5"
+        "ELEVENLABS_API_KEY": "${ELEVENLABS_API_KEY}"
       },
       "disabled": false,
       "autoApprove": [
