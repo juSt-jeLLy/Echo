@@ -3,15 +3,19 @@ import { GlobeScene } from "@/components/globe/GlobeScene";
 import { TopBar } from "@/components/ui-extras/TopBar";
 import { CityPanel } from "@/components/ui-extras/CityPanel";
 import { EraCard } from "@/components/ui-extras/EraCard";
+import { ModeCard } from "@/components/ui-extras/ModeCard";
 import { Hint } from "@/components/ui-extras/Hint";
 import { City } from "@/data/cities";
 import { Era } from "@/data/eras";
+import { NarratorVoice } from "@/data/voices";
 
-type Step = "idle" | "era" | "experience";
+type Step = "idle" | "era" | "mode" | "experience";
 
 const Index = () => {
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [selectedEra, setSelectedEra] = useState<Era | null>(null);
+  const [selectedMode, setSelectedMode] = useState<"wander" | "documentary">("wander");
+  const [selectedVoice, setSelectedVoice] = useState<NarratorVoice | null>(null);
   const [step, setStep] = useState<Step>("idle");
   const [ambient, setAmbient] = useState(true);
   const [ready, setReady] = useState(false);
@@ -41,20 +45,37 @@ const Index = () => {
   const handleSelectCity = (c: City) => {
     setSelectedCity(c);
     setSelectedEra(null);
+    setSelectedMode("wander");
+    setSelectedVoice(null);
     setStep("era");
   };
 
   const handleSelectEra = (era: Era) => {
     setSelectedEra(era);
+    setStep("mode");
+  };
+
+  const handleSelectWander = () => {
+    setSelectedMode("wander");
+    setSelectedVoice(null);
     setStep("experience");
   };
 
+  const handleSelectDocumentary = (voice: NarratorVoice) => {
+    setSelectedMode("documentary");
+    setSelectedVoice(voice);
+    setStep("experience");
+  };
+
+  const handleBackToMode = () => setStep("mode");
   const handleBackToEra = () => setStep("era");
 
   const handleClose = () => {
     setStep("idle");
     setSelectedCity(null);
     setSelectedEra(null);
+    setSelectedMode("wander");
+    setSelectedVoice(null);
   };
 
   return (
@@ -103,11 +124,24 @@ const Index = () => {
       {step === "era" && (
         <EraCard city={selectedCity} onSelectEra={handleSelectEra} onClose={handleClose} />
       )}
+
+      {step === "mode" && selectedCity && selectedEra && (
+        <ModeCard
+          city={selectedCity}
+          era={selectedEra}
+          onSelectWander={handleSelectWander}
+          onSelectDocumentary={handleSelectDocumentary}
+          onBack={handleBackToEra}
+        />
+      )}
+
       {step === "experience" && (
         <CityPanel
           city={selectedCity}
           era={selectedEra}
-          onBack={handleBackToEra}
+          mode={selectedMode}
+          voice={selectedVoice}
+          onBack={handleBackToMode}
           onClose={handleClose}
         />
       )}
