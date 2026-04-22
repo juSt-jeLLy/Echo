@@ -1,0 +1,42 @@
+{
+  "mcpServers": {
+    "elevenlabs": {
+      "command": "uvx",
+      "args": [
+        "elevenlabs-mcp"
+      ],
+      "env": {
+        "ELEVENLABS_API_KEY": "sk_a347b27de53e03dcb1bb1bf985f3695a4e5d5e9521ac05b5"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "text_to_speech",
+        "speech_to_text",
+        "speech_to_speech",
+        "text_to_sound_effects",
+        "isolate_audio",
+        "list_voices",
+        "search_voices",
+        "search_voice_library",
+        "get_voice",
+        "voice_clone",
+        "text_to_voice",
+        "create_voice_from_preview",
+        "list_models",
+        "check_subscription",
+        "create_agent",
+        "get_agent",
+        "list_agents",
+        "add_knowledge_base_to_agent",
+        "list_conversations",
+        "get_conversation",
+        "make_outbound_call",
+        "list_phone_numbers",
+        "compose_music",
+        "create_composition_plan",
+        "play_audio",
+        "list_models"
+      ]
+    }
+  }
+}

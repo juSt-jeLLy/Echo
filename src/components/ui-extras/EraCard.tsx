@@ -35,10 +35,10 @@ export function EraCard({ city, onSelectEra, onClose }: Props) {
   };
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-6 sm:pb-10">
+    <div className="pointer-events-none fixed inset-0 z-20 flex items-center justify-center px-4 py-8">
       <div
         key={city.id + "-era"}
-        className="pointer-events-auto w-full max-w-3xl panel-glass rounded-3xl px-6 sm:px-8 py-6 animate-rise"
+        className="pointer-events-auto w-full max-w-3xl panel-glass rounded-3xl px-8 sm:px-10 py-8 animate-rise"
       >
         {/* Header */}
         <div className="flex items-start justify-between gap-4">
