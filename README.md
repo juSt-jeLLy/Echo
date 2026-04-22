@@ -1,4 +1,4 @@
-# 🌍 City Whispers
+# 🌍 ECHO
 
 > *Step into history. Hear the world as it was.*
 
@@ -51,24 +51,6 @@ Built for the **ElevenLabs × Kiro Hackathon** using spec-driven development wit
 
 ---
 
-## 🚀 Getting Started
-
-### Prerequisites
-- Node.js 18+ (or Bun)
-- ElevenLabs API key ([get one here](https://elevenlabs.io))
-- Groq API key ([get one here](https://console.groq.com))
-
-### Installation
-
-```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/city-whispers.git
-cd city-whispers
-
-# Install dependencies
-npm install
-```
-
 ### Environment Variables
 
 Create a `.env` file in the root:
@@ -85,26 +67,6 @@ VITE_HISTORIAN_AGENT_ID=agent_2501kpv83qvnfpas77a74tedp0kk
 ```
 
 > **Note**: The historian agent (`agent_2501kpv83qvnfpas77a74tedp0kk`) is pre-configured with the City Whispers historian persona. You can use this agent ID directly, or create your own via the ElevenLabs dashboard.
-
-### Run
-
-```bash
-npm run dev
-# Opens at http://localhost:8080
-```
-
-### Build
-
-```bash
-npm run build
-npm run preview
-```
-
-### Tests
-
-```bash
-npm test
-```
 
 ---
 
