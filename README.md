@@ -2,10 +2,11 @@
 
 > *Step into history. Hear the world as it was.*
 
-**City Whispers** is an immersive 3D globe experience that transports you to any city in any historical era through AI-generated audio. Click a city, choose an era, and hear the streets come alive — vendors shouting in local languages, crowds reacting to historical events, ambient soundscapes from the past. Then talk to a historian who was actually there.
+**ECHO** is an immersive 3D globe experience that lets you time-travel to any city in any historical era through AI-generated audio. Click London in 1666 and you're standing in the Great Fire. Click Tokyo in 1920 and the jazz age roars around you. Vendors shout in local languages, crowds react to the events unfolding, and a hyper-specific ambient soundscape pulls you into the moment. Then, when you're ready, you can talk to a historian who was actually there — someone who lived through it, speaks from it, and knows only what the world knew then.
 
 Built for the **ElevenLabs × Kiro Hackathon** using spec-driven development with Kiro and the full ElevenLabs API suite.
 
+[How Kiro was used](https://github.com/juSt-jeLLy/Echo/blob/main/README.md#-how-kiro-was-used)
 ---
 
 ## ✨ Features
