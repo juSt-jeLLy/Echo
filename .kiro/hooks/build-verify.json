@@ -1,0 +1,12 @@
+{
+  "name": "Build Verify",
+  "version": "1.0.0",
+  "description": "Verify the full TypeScript build succeeds before committing",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm run build"
+  }
+}

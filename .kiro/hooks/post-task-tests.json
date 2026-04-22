@@ -1,0 +1,12 @@
+{
+  "name": "Post-Task Test Runner",
+  "version": "1.0.0",
+  "description": "Run test suite after each spec task completes to catch regressions immediately",
+  "when": {
+    "type": "postTaskExecution"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "npm test"
+  }
+}
