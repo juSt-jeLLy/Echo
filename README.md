@@ -4,7 +4,7 @@
 
 **ECHO** is an immersive 3D globe experience that lets you time-travel to any city in any historical era through AI-generated audio. Click London in 1666 and you're standing in the Great Fire. Click Tokyo in 1920 and the jazz age roars around you. Vendors shout in local languages, crowds react to the events unfolding, and a hyper-specific ambient soundscape pulls you into the moment. Or slow down and let a narrator guide you through a four-part documentary about the city and era you've landed in. Then, when you're ready, talk to a historian who was actually there — someone who lived through it, speaks from it, and knows only what the world knew then.
 
-Built for the **ElevenLabs × Kiro Hackathon** using spec-driven development with Kiro and the full ElevenLabs API suite.
+[Live Demo](https://echo-seven-roan.vercel.app/)
 
 ---
 
