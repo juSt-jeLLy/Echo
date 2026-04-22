@@ -29,7 +29,7 @@ export function TopBar({ ambient, onToggleAmbient, onSearchSelect }: Props) {
           <div className="relative h-8 w-8 rounded-full bg-gradient-to-br from-primary to-secondary glow-primary" />
           <div className="leading-tight">
             <h1 className="font-display text-lg sm:text-xl font-semibold tracking-tight">
-              City <span className="text-aurora">Whispers</span>
+              ECHO<span className="text-aurora"></span>
             </h1>
             <p className="text-[11px] sm:text-xs text-muted-foreground -mt-0.5">
               Close your eyes. You're somewhere else.
